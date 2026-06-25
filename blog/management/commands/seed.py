@@ -56,7 +56,8 @@ class Command(BaseCommand):
         mode = "fast" if opts["fast"] else "full"
         self.stdout.write(
             self.style.NOTICE(
-                f"Seeding in {mode} mode: {num_users} users, {num_tags} tags, {num_posts} posts, {num_comments} comments"
+                f"Seeding in {mode} mode: {num_users} users, "
+                + f"{num_tags} tags, {num_posts} posts, {num_comments} comments"
             )
         )
 
@@ -184,7 +185,8 @@ class Command(BaseCommand):
 
         self.stdout.write(
             self.style.SUCCESS(
-                f"\nDone. Created: {len(user_ids)} users, {len(tags)} tags, {num_posts} posts, {num_comments} comments."
+                f"\nDone. Created: {len(user_ids)} users, "
+                + f"{len(tags)} tags, {num_posts} posts, {num_comments} comments."
             )
         )
 
