@@ -34,7 +34,11 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument("--force", action="store_true", help="Seed even if data exists")
-        parser.add_argument("--fast", action="store_true", help="Generate a minimal dataset for development (seconds instead of minutes)")
+        parser.add_argument(
+            "--fast",
+            action="store_true",
+            help="Generate a minimal dataset for development (seconds instead of minutes)",
+        )
 
     def handle(self, *args, **opts):
         if User.objects.exists() and not opts["force"]:
@@ -50,7 +54,11 @@ class Command(BaseCommand):
         body_pool_size = sizes["body_pool"]
 
         mode = "fast" if opts["fast"] else "full"
-        self.stdout.write(self.style.NOTICE(f"Seeding in {mode} mode: {num_users} users, {num_tags} tags, {num_posts} posts, {num_comments} comments"))
+        self.stdout.write(
+            self.style.NOTICE(
+                f"Seeding in {mode} mode: {num_users} users, {num_tags} tags, {num_posts} posts, {num_comments} comments"
+            )
+        )
 
         fake = Faker()
         Faker.seed(42)
@@ -78,7 +86,7 @@ class Command(BaseCommand):
 
         self.stdout.write("Seeding tags...")
         hot_slugs = ["python", "django", "postgres", "devops", "sre"]
-        hot_slugs = hot_slugs[:min(len(hot_slugs), num_tags)]
+        hot_slugs = hot_slugs[: min(len(hot_slugs), num_tags)]
         tag_objs = [Tag(name=s.title(), slug=s, created_at=now) for s in hot_slugs]
         for _ in range(num_tags - len(hot_slugs)):
             word = fake.unique.word()
@@ -174,9 +182,11 @@ class Command(BaseCommand):
                 self.stdout.write(f"  {done}/{num_comments} comments...")
         self.stdout.write(self.style.SUCCESS(f"  {num_comments} comments created"))
 
-        self.stdout.write(self.style.SUCCESS(
-            f"\nDone. Created: {len(user_ids)} users, {len(tags)} tags, {num_posts} posts, {num_comments} comments."
-        ))
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"\nDone. Created: {len(user_ids)} users, {len(tags)} tags, {num_posts} posts, {num_comments} comments."
+            )
+        )
 
 
 def _random_time(start, end):
