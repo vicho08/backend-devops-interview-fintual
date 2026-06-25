@@ -2,29 +2,49 @@
 
 A small content service: users, posts, comments, tags. Django + Ninja + Postgres.
 
-## Running it locally
+## Requirements
 
-Prereqs:
+- Docker and Docker Compose
 
-- [mise](https://mise.jdx.dev/) — manages the Python toolchain and uv.
-- A running PostgreSQL 16 instance on `localhost:5432` with a database called `backend_devops_interview` accessible to `postgres`/`postgres`. (Local install, `brew install postgresql@16`, host-mode docker, whatever you have.)
+## Quick setup
 
-Steps:
+1. Copy the environment variables file:
+   ```bash
+   cp .env.example .env
+   ```
+2. Start the environment:
+   ```bash
+   docker compose up --build
+   ```
+3. Apply migrations:
+   ```bash
+   docker compose exec web uv run python manage.py migrate
+   ```
+4. Load sample data (fast seed for development):
+   ```bash
+   docker compose exec web uv run python manage.py seed --fast
+   ```
 
-```sh
-mise install
-uv sync
-createdb backend_devops_interview        # or however you create it
-uv run python manage.py migrate
-uv run python manage.py seed
-uv run python manage.py runserver
-```
+The app is available at http://localhost:8000. API docs at http://localhost:8000/api/docs.
 
-API docs at <http://localhost:8000/api/docs>.
+## Environment variables
 
-Seeding writes ~100k posts and ~500k comments. Expect a few minutes.
+See `.env.example` for the full list of available variables.
+Inside Docker, `POSTGRES_HOST` must be `db`; outside Docker, `localhost`.
 
-## What the API does
+## Development
+
+- Lint: `uv run ruff check .`
+- Format: `uv run ruff format .`
+- Tests: `uv run pytest`
+- CI runs lint and tests automatically on every push/PR.
+
+## Seed
+
+- `manage.py seed` — full dataset (~100k posts, ~500k comments; takes several minutes).
+- `manage.py seed --fast` — minimal dataset for development (seconds).
+
+## API
 
 | Method | Path | Description |
 | ------ | ---- | ----------- |
@@ -36,31 +56,3 @@ Seeding writes ~100k posts and ~500k comments. Expect a few minutes.
 | POST   | `/api/posts/{id}/comments` | Add a comment to a post |
 | GET    | `/api/users/{id}` | User profile with post and comment counts |
 | GET    | `/api/users/find?email=` | Look up a user by email |
-
-## The assignment
-
-We want to see how you take a working prototype and turn it into something a team can develop on and operate. Pick the changes that give the strongest signal about how you'd improve this codebase if you owned it. There are three areas we care about:
-
-1. **Developer experience.** Getting this running on a fresh laptop is harder than it should be. Make it easier.
-2. **Performance.** Once the database is seeded, exercise the endpoints. Some of them are slow. Find out why and fix what you can.
-3. **Production readiness.** This service is a long way from something you'd put behind a load balancer. Move it closer — pick whichever deployment target you'd reach for at work (Helm chart, ECS task def, K8s manifests, Fly, Render, plain Docker + systemd — your call).
-
-**Depth beats breadth.** Pick 2–3 things and go deep rather than touching ten things shallowly. Write a short `NOTES.md` covering:
-
-- What you did and why.
-- What you deliberately *didn't* do.
-- What you'd do next if you had another day.
-
-## Non-goals
-
-- **Authentication / authorization** is intentionally absent. If you want to suggest a direction in `NOTES.md`, great — but no need to implement anything.
-- **Test coverage** is not what we're grading. The smoke tests are there so you have something to wire into CI.
-- **Reshaping the domain model** isn't expected. Adjust it if a perf fix needs it; otherwise leave it.
-
-## Time
-
-Soft cap of 2–6 hours, depending on your experience and what tooling you have available (AI agents are fine — say so in `NOTES.md` and include chat transcripts). We're looking at signal, not hours.
-
-## Deliverable
-
-Whatever's easy for you to share: a GitHub link, a [gitfront](https://gitfront.io) link, a git bundle, even `git format-patch`. Please don't open a PR against this repo.
