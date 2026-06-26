@@ -185,6 +185,18 @@ def test_list_posts_query_count_constant_per_page(client, user):
 
 
 @pytest.mark.django_db
+def test_view_count_increments_on_each_request(client, user):
+    """Each GET /posts/{id} increments view_count by exactly 1 (atomic update)."""
+    post = Post.objects.create(author=user, title="Test", body="x", view_count=0)
+
+    for _ in range(5):
+        client.get(f"/api/posts/{post.id}")
+
+    post.refresh_from_db()
+    assert post.view_count == 5
+
+
+@pytest.mark.django_db
 def test_get_post_query_count_is_fixed(client, user):
     def make_post_with_comments(title, n_comments):
         post = Post.objects.create(author=user, title=title, body="body")

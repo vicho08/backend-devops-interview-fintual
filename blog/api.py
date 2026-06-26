@@ -1,4 +1,4 @@
-from django.db.models import Prefetch, Q
+from django.db.models import F, Prefetch, Q
 from django.shortcuts import get_object_or_404
 from ninja import Router
 from ninja.pagination import paginate
@@ -82,8 +82,8 @@ def get_post(request, post_id: int):
         ),
         id=post_id,
     )
+    Post.objects.filter(id=post_id).update(view_count=F("view_count") + 1)
     post.view_count += 1
-    post.save()
 
     comments = [
         {
