@@ -1,8 +1,10 @@
 from django.db.models import Prefetch, Q
 from django.shortcuts import get_object_or_404
 from ninja import Router
+from ninja.pagination import paginate
 
 from blog.models import Comment, Post, Tag, User
+from blog.pagination import DefaultPagination
 from blog.schemas import (
     CommentCreateIn,
     CommentCreateOut,
@@ -28,31 +30,23 @@ def _serialize_tag(tag: Tag) -> dict:
     return {"id": tag.id, "name": tag.name, "slug": tag.slug}
 
 
-def _serialize_post_list(post: Post) -> dict:
-    return {
-        "id": post.id,
-        "title": post.title,
-        "author": _serialize_author(post.author),
-        "tags": [_serialize_tag(t) for t in post.tags.all()],
-        "view_count": post.view_count,
-        "created_at": post.created_at,
-    }
-
-
 @router.get("/posts", response=list[PostListOut])
+@paginate(DefaultPagination)
 def list_posts(request):
-    posts = (
+    """Return published posts ordered by creation date, newest first."""
+    return (
         Post.objects.filter(is_published=True)
         .select_related("author")
         .prefetch_related("tags")
         .order_by("-created_at")
     )
-    return [_serialize_post_list(p) for p in posts]
 
 
 @router.get("/posts/search", response=list[PostListOut])
+@paginate(DefaultPagination)
 def search_posts(request, q: str):
-    posts = (
+    """Return published posts whose title or body contains the query string."""
+    return (
         Post.objects.filter(
             Q(title__icontains=q) | Q(body__icontains=q),
             is_published=True,
@@ -61,19 +55,19 @@ def search_posts(request, q: str):
         .prefetch_related("tags")
         .order_by("-created_at")
     )
-    return [_serialize_post_list(p) for p in posts]
 
 
 @router.get("/posts/by-tag/{slug}", response=list[PostListOut])
+@paginate(DefaultPagination)
 def posts_by_tag(request, slug: str):
+    """Return published posts that have the given tag slug."""
     tag = get_object_or_404(Tag, slug=slug)
-    posts = (
+    return (
         tag.posts.filter(is_published=True)
         .select_related("author")
         .prefetch_related("tags")
         .order_by("-created_at")
     )
-    return [_serialize_post_list(p) for p in posts]
 
 
 @router.get("/posts/{post_id}", response=PostDetailOut)

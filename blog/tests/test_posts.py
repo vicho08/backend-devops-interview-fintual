@@ -31,7 +31,7 @@ def test_list_posts_returns_published(client, user):
 
     assert response.status_code == 200
     data = response.json()
-    titles = [p["title"] for p in data]
+    titles = [p["title"] for p in data["posts"]]
     assert "Hello" in titles
     assert "Draft" not in titles
 
@@ -116,6 +116,71 @@ def test_posts_by_tag_query_count_is_fixed(client, user):
 
     assert len(ctx_5) == len(ctx_10), (
         f"N+1 detected: {len(ctx_5)} queries for 5 posts vs {len(ctx_10)} for 10 posts"
+    )
+
+
+# --- Pagination tests ---
+
+
+@pytest.mark.django_db
+def test_list_posts_default_page_size(client, user):
+    """Default page_size is 20; creating 25 posts returns 20 items and count=25."""
+    for i in range(25):
+        Post.objects.create(author=user, title=f"Post {i}", body="x")
+
+    resp = client.get("/api/posts")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data["posts"]) == 20
+    assert data["count"] == 25
+
+
+@pytest.mark.django_db
+def test_list_posts_caps_limit(client, user):
+    """Requesting limit > 100 returns a 422 validation error (server-side cap)."""
+    for i in range(110):
+        Post.objects.create(author=user, title=f"Post {i}", body="x")
+
+    resp = client.get("/api/posts?limit=1000")
+
+    assert resp.status_code == 422
+
+
+@pytest.mark.django_db
+def test_list_posts_offset_no_overlap(client, user):
+    """Second page via offset contains the next set of posts with no overlap."""
+    for i in range(25):
+        Post.objects.create(author=user, title=f"Post {i}", body="x")
+
+    ids_p1 = {p["id"] for p in client.get("/api/posts?limit=20&offset=0").json()["posts"]}
+    ids_p2 = {p["id"] for p in client.get("/api/posts?limit=20&offset=20").json()["posts"]}
+
+    assert len(ids_p1) == 20
+    assert len(ids_p2) == 5
+    assert ids_p1.isdisjoint(ids_p2)
+
+
+@pytest.mark.django_db
+def test_list_posts_query_count_constant_per_page(client, user):
+    """Query count per page is fixed regardless of the total number of posts."""
+    tag = Tag.objects.create(name="Python", slug="python")
+    for i in range(25):
+        p = Post.objects.create(author=user, title=f"Post {i}", body="x")
+        p.tags.add(tag)
+
+    with CaptureQueriesContext(connection) as ctx_25:
+        client.get("/api/posts?limit=20&offset=0")
+
+    for i in range(25, 225):
+        p = Post.objects.create(author=user, title=f"Post {i}", body="x")
+        p.tags.add(tag)
+
+    with CaptureQueriesContext(connection) as ctx_225:
+        client.get("/api/posts?limit=20&offset=0")
+
+    assert len(ctx_25) == len(ctx_225), (
+        f"Query count changed: {len(ctx_25)} for 25 posts vs {len(ctx_225)} for 225"
     )
 
 
