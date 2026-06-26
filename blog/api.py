@@ -53,23 +53,17 @@ def get_post(request, post_id: int):
 
 @router.post("/posts", response=PostCreateOut)
 def create_post(request, payload: PostCreateIn):
-    post = services.create_post(
+    return services.create_post(
         author_id=payload.author_id,
         title=payload.title,
         body=payload.body,
         tag_slugs=payload.tag_slugs,
     )
-    return post
 
 
 @router.post("/posts/{post_id}/comments", response=CommentCreateOut)
 def create_comment(request, post_id: int, payload: CommentCreateIn):
-    comment = services.create_comment(
-        post_id=post_id,
-        author_id=payload.author_id,
-        body=payload.body,
-    )
-    return comment
+    return services.create_comment(post_id=post_id, author_id=payload.author_id, body=payload.body)
 
 
 @router.get("/users/find", response=UserDetailOut)
