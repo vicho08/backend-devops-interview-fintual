@@ -199,9 +199,7 @@ def test_view_count_increments_on_each_request(client, user):
 @pytest.mark.django_db
 def test_user_detail_counts_are_correct(client, user):
     """post_count and comment_count must be exact, not inflated by cartesian product."""
-    other_user = User.objects.create(
-        username="bob", email="bob@example.com", display_name="Bob"
-    )
+    other_user = User.objects.create(username="bob", email="bob@example.com", display_name="Bob")
     for i in range(3):
         Post.objects.create(author=user, title=f"Post {i}", body="x")
     for i in range(2):
@@ -211,7 +209,7 @@ def test_user_detail_counts_are_correct(client, user):
     resp = client.get(f"/api/users/{user.id}")
     data = resp.json()
 
-    assert data["post_count"] == 3   # NOT 6 (3×2 cartesian product)
+    assert data["post_count"] == 3  # NOT 6 (3×2 cartesian product)
     assert data["comment_count"] == 2  # NOT 6 (3×2 cartesian product)
 
 
