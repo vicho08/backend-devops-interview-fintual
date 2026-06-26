@@ -1,4 +1,4 @@
-from typing import Any, List
+from typing import Any
 
 from ninja import Field, Schema
 from ninja.pagination import LimitOffsetPagination
@@ -21,7 +21,7 @@ class DefaultPagination(LimitOffsetPagination):
     class Output(Schema):
         """Paginated response envelope."""
 
-        posts: List[Any]
+        posts: list[Any]
         count: int
 
     items_attribute: str = "posts"
