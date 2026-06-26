@@ -13,6 +13,7 @@ api.add_router("/", blog_router)
 def handle_domain_error(request, exc):
     return api.create_response(request, {"detail": str(exc)}, status=400)
 
+
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/", api.urls),
