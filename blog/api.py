@@ -49,7 +49,6 @@ def get_post(request, post_id: int):
     post = get_object_or_404(selectors.post_detail_qs(), id=post_id)
     services.increment_view_count(post)
     return post
-    return post
 
 
 @router.post("/posts", response=PostCreateOut)
@@ -60,18 +59,18 @@ def create_post(request, payload: PostCreateIn):
         body=payload.body,
         tag_slugs=payload.tag_slugs,
     )
-    return post
 
 
 @router.post("/posts/{post_id}/comments", response=CommentCreateOut)
 def create_comment(request, post_id: int, payload: CommentCreateIn):
-    return services.create_comment(post_id=post_id, author_id=payload.author_id, body=payload.body)
+    return services.create_comment(
+        post_id=post_id, author_id=payload.author_id, body=payload.body
+    )
 
 
 @router.get("/users/find", response=UserDetailOut)
 def find_user_by_email(request, email: str):
-    user = get_object_or_404(selectors.annotated_users(), email=email)
-    return _user_detail(user)
+    return get_object_or_404(selectors.annotated_users(), email=email)
 
 
 @router.get("/users/{user_id}", response=UserDetailOut)
