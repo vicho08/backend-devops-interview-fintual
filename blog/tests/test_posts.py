@@ -51,6 +51,7 @@ def test_get_post_returns_detail(client, user):
 
 # --- N+1 regression tests ---
 
+
 @pytest.mark.django_db
 def test_list_posts_query_count_is_fixed(client, user):
     tag = Tag.objects.create(name="Python", slug="python")
