@@ -45,7 +45,15 @@ Los 21 tests pasaron sin modificar uno solo — prueba de que el refactor no cam
 | F1–F5 Developer Experience | 25/06 | ≈85 min |
 | F6–F9 Performance | 26/06 | ≈56 min |
 | F13–F15 Refactor arquitectural | 26/06 | ≈60 min |
-| **Total activo** | | **≈200 min (3h 20min)** |
+| Validación, tests y planificación | 25-26/06 | ≈90 min |
+| **Total** | | **≈290 min (4h 50min)** |
+
+**Desglose de validación y planificación:**
+- Test setup: configuración de pytest, fixtures, `@pytest.mark.django_db`
+- Test implementation: 21 tests (N+1 validation, pagination edge cases, atomicidad de vistas)
+- Query validation: `assertNumQueries`, inspección de querysets con `.query`
+- Design review: arquitectura de capas, decisiones de eager loading, manejo de errores
+- Documentation: CLAUDE.md, NOTAS.md, comentarios en código
 
 ---
 
