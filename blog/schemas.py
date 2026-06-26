@@ -23,6 +23,10 @@ class PostListOut(Schema):
     view_count: int
     created_at: datetime
 
+    @staticmethod
+    def resolve_tags(obj):
+        return obj.tags.all()
+
 
 class CommentOut(Schema):
     id: int
@@ -41,6 +45,16 @@ class PostDetailOut(Schema):
     view_count: int
     created_at: datetime
     updated_at: datetime
+
+    @staticmethod
+    def resolve_tags(obj):
+        return obj.tags.all()
+
+    @staticmethod
+    def resolve_comments(obj):
+        # Uses .all() to reuse the ordered Prefetch cache from post_detail_qs().
+        # DO NOT add .order_by() here — it would bypass the prefetch and re-query.
+        return obj.comments.all()
 
 
 class UserDetailOut(Schema):
