@@ -1,6 +1,7 @@
-from django.db.models import F, Prefetch, Q
+from django.db.models import Count, F, Prefetch, Q
 from django.shortcuts import get_object_or_404
 from ninja import Router
+from ninja.errors import HttpError
 from ninja.pagination import paginate
 
 from blog.models import Comment, Post, Tag, User
@@ -115,9 +116,10 @@ def create_post(request, payload: PostCreateIn):
         title=payload.title,
         body=payload.body,
     )
-    for slug in payload.tag_slugs:
-        tag = Tag.objects.get(slug=slug)
-        post.tags.add(tag)
+    tags = Tag.objects.filter(slug__in=payload.tag_slugs)
+    if len(tags) != len(payload.tag_slugs):
+        raise HttpError(400, "One or more tag slugs do not exist.")
+    post.tags.set(tags)
     return {"id": post.id, "title": post.title}
 
 
@@ -129,15 +131,28 @@ def create_comment(request, post_id: int, payload: CommentCreateIn):
     return {"id": comment.id}
 
 
+def _annotated_user_qs():
+    """Return a User queryset with post_count and comment_count annotated in a single query.
+
+    Uses distinct=True on both counts to avoid the cartesian product that arises
+    when joining two multi-valued relations (posts and comments) simultaneously.
+    Without distinct, a user with P posts and C comments would report P*C for both counts.
+    """
+    return User.objects.annotate(
+        post_count=Count("posts", distinct=True),
+        comment_count=Count("comments", distinct=True),
+    )
+
+
 @router.get("/users/find", response=UserDetailOut)
 def find_user_by_email(request, email: str):
-    user = get_object_or_404(User, email=email)
+    user = get_object_or_404(_annotated_user_qs(), email=email)
     return _user_detail(user)
 
 
 @router.get("/users/{user_id}", response=UserDetailOut)
 def get_user(request, user_id: int):
-    user = get_object_or_404(User, id=user_id)
+    user = get_object_or_404(_annotated_user_qs(), id=user_id)
     return _user_detail(user)
 
 
@@ -148,6 +163,6 @@ def _user_detail(user: User) -> dict:
         "display_name": user.display_name,
         "email": user.email,
         "bio": user.bio,
-        "post_count": user.posts.count(),
-        "comment_count": user.comments.count(),
+        "post_count": user.post_count,
+        "comment_count": user.comment_count,
     }
