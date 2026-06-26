@@ -1,9 +1,10 @@
-from django.db.models import Count, F, Prefetch, Q
+from django.db.models import F
 from django.shortcuts import get_object_or_404
 from ninja import Router
 from ninja.errors import HttpError
 from ninja.pagination import paginate
 
+from blog import selectors
 from blog.models import Comment, Post, Tag, User
 from blog.pagination import DefaultPagination
 from blog.schemas import (
@@ -35,54 +36,31 @@ def _serialize_tag(tag: Tag) -> dict:
 @paginate(DefaultPagination)
 def list_posts(request):
     """Return published posts ordered by creation date, newest first."""
-    return (
-        Post.objects.filter(is_published=True)
-        .select_related("author")
-        .prefetch_related("tags")
-        .order_by("-created_at")
-    )
+    return selectors.published_posts()
 
 
 @router.get("/posts/search", response=list[PostListOut])
 @paginate(DefaultPagination)
 def search_posts(request, q: str):
     """Return published posts whose title or body contains the query string."""
-    return (
-        Post.objects.filter(
-            Q(title__icontains=q) | Q(body__icontains=q),
-            is_published=True,
-        )
-        .select_related("author")
-        .prefetch_related("tags")
-        .order_by("-created_at")
-    )
+    return selectors.search_published_posts(q)
 
 
 @router.get("/posts/by-tag/{slug}", response=list[PostListOut])
 @paginate(DefaultPagination)
 def posts_by_tag(request, slug: str):
-    """Return published posts that have the given tag slug."""
-    tag = get_object_or_404(Tag, slug=slug)
-    return (
-        tag.posts.filter(is_published=True)
-        .select_related("author")
-        .prefetch_related("tags")
-        .order_by("-created_at")
-    )
+    """Return published posts that have the given tag slug.
+
+    Returns 404 if the tag slug does not exist, preserving the original contract.
+    An existing tag with no published posts returns an empty list.
+    """
+    get_object_or_404(Tag, slug=slug)
+    return selectors.posts_for_tag(slug)
 
 
 @router.get("/posts/{post_id}", response=PostDetailOut)
 def get_post(request, post_id: int):
-    post = get_object_or_404(
-        Post.objects.select_related("author").prefetch_related(
-            "tags",
-            Prefetch(
-                "comments",
-                queryset=Comment.objects.select_related("author").order_by("created_at"),
-            ),
-        ),
-        id=post_id,
-    )
+    post = get_object_or_404(selectors.post_detail_qs(), id=post_id)
     Post.objects.filter(id=post_id).update(view_count=F("view_count") + 1)
     post.view_count += 1
 
@@ -131,28 +109,15 @@ def create_comment(request, post_id: int, payload: CommentCreateIn):
     return {"id": comment.id}
 
 
-def _annotated_user_qs():
-    """Return a User queryset with post_count and comment_count annotated in a single query.
-
-    Uses distinct=True on both counts to avoid the cartesian product that arises
-    when joining two multi-valued relations (posts and comments) simultaneously.
-    Without distinct, a user with P posts and C comments would report P*C for both counts.
-    """
-    return User.objects.annotate(
-        post_count=Count("posts", distinct=True),
-        comment_count=Count("comments", distinct=True),
-    )
-
-
 @router.get("/users/find", response=UserDetailOut)
 def find_user_by_email(request, email: str):
-    user = get_object_or_404(_annotated_user_qs(), email=email)
+    user = get_object_or_404(selectors.annotated_users(), email=email)
     return _user_detail(user)
 
 
 @router.get("/users/{user_id}", response=UserDetailOut)
 def get_user(request, user_id: int):
-    user = get_object_or_404(_annotated_user_qs(), id=user_id)
+    user = get_object_or_404(selectors.annotated_users(), id=user_id)
     return _user_detail(user)
 
 
