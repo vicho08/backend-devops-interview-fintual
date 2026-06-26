@@ -1,11 +1,9 @@
-from django.db.models import F
 from django.shortcuts import get_object_or_404
 from ninja import Router
-from ninja.errors import HttpError
 from ninja.pagination import paginate
 
-from blog import selectors
-from blog.models import Comment, Post, Tag, User
+from blog import selectors, services
+from blog.models import Tag, User
 from blog.pagination import DefaultPagination
 from blog.schemas import (
     CommentCreateIn,
@@ -61,8 +59,7 @@ def posts_by_tag(request, slug: str):
 @router.get("/posts/{post_id}", response=PostDetailOut)
 def get_post(request, post_id: int):
     post = get_object_or_404(selectors.post_detail_qs(), id=post_id)
-    Post.objects.filter(id=post_id).update(view_count=F("view_count") + 1)
-    post.view_count += 1
+    services.increment_view_count(post)
 
     comments = [
         {
@@ -88,24 +85,22 @@ def get_post(request, post_id: int):
 
 @router.post("/posts", response=PostCreateOut)
 def create_post(request, payload: PostCreateIn):
-    author = get_object_or_404(User, id=payload.author_id)
-    post = Post.objects.create(
-        author=author,
+    post = services.create_post(
+        author_id=payload.author_id,
         title=payload.title,
         body=payload.body,
+        tag_slugs=payload.tag_slugs,
     )
-    tags = Tag.objects.filter(slug__in=payload.tag_slugs)
-    if len(tags) != len(payload.tag_slugs):
-        raise HttpError(400, "One or more tag slugs do not exist.")
-    post.tags.set(tags)
     return {"id": post.id, "title": post.title}
 
 
 @router.post("/posts/{post_id}/comments", response=CommentCreateOut)
 def create_comment(request, post_id: int, payload: CommentCreateIn):
-    post = get_object_or_404(Post, id=post_id)
-    author = get_object_or_404(User, id=payload.author_id)
-    comment = Comment.objects.create(post=post, author=author, body=payload.body)
+    comment = services.create_comment(
+        post_id=post_id,
+        author_id=payload.author_id,
+        body=payload.body,
+    )
     return {"id": comment.id}
 
 
