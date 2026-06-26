@@ -3,7 +3,7 @@ from ninja import Router
 from ninja.pagination import paginate
 
 from blog import selectors, services
-from blog.models import Tag, User
+from blog.models import Tag
 from blog.pagination import DefaultPagination
 from blog.schemas import (
     CommentCreateIn,
@@ -16,18 +16,6 @@ from blog.schemas import (
 )
 
 router = Router()
-
-
-def _serialize_author(user: User) -> dict:
-    return {
-        "id": user.id,
-        "username": user.username,
-        "display_name": user.display_name,
-    }
-
-
-def _serialize_tag(tag: Tag) -> dict:
-    return {"id": tag.id, "name": tag.name, "slug": tag.slug}
 
 
 @router.get("/posts", response=list[PostListOut])
@@ -60,27 +48,7 @@ def posts_by_tag(request, slug: str):
 def get_post(request, post_id: int):
     post = get_object_or_404(selectors.post_detail_qs(), id=post_id)
     services.increment_view_count(post)
-
-    comments = [
-        {
-            "id": c.id,
-            "author": _serialize_author(c.author),
-            "body": c.body,
-            "created_at": c.created_at,
-        }
-        for c in post.comments.all()
-    ]
-    return {
-        "id": post.id,
-        "title": post.title,
-        "body": post.body,
-        "author": _serialize_author(post.author),
-        "tags": [_serialize_tag(t) for t in post.tags.all()],
-        "comments": comments,
-        "view_count": post.view_count,
-        "created_at": post.created_at,
-        "updated_at": post.updated_at,
-    }
+    return post
 
 
 @router.post("/posts", response=PostCreateOut)
@@ -91,7 +59,7 @@ def create_post(request, payload: PostCreateIn):
         body=payload.body,
         tag_slugs=payload.tag_slugs,
     )
-    return {"id": post.id, "title": post.title}
+    return post
 
 
 @router.post("/posts/{post_id}/comments", response=CommentCreateOut)
@@ -101,28 +69,14 @@ def create_comment(request, post_id: int, payload: CommentCreateIn):
         author_id=payload.author_id,
         body=payload.body,
     )
-    return {"id": comment.id}
+    return comment
 
 
 @router.get("/users/find", response=UserDetailOut)
 def find_user_by_email(request, email: str):
-    user = get_object_or_404(selectors.annotated_users(), email=email)
-    return _user_detail(user)
+    return get_object_or_404(selectors.annotated_users(), email=email)
 
 
 @router.get("/users/{user_id}", response=UserDetailOut)
 def get_user(request, user_id: int):
-    user = get_object_or_404(selectors.annotated_users(), id=user_id)
-    return _user_detail(user)
-
-
-def _user_detail(user: User) -> dict:
-    return {
-        "id": user.id,
-        "username": user.username,
-        "display_name": user.display_name,
-        "email": user.email,
-        "bio": user.bio,
-        "post_count": user.post_count,
-        "comment_count": user.comment_count,
-    }
+    return get_object_or_404(selectors.annotated_users(), id=user_id)
