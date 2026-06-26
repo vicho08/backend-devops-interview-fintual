@@ -11,3 +11,13 @@ __pycache__/
 staticfiles/
 .vscode/
 .idea/
+
+# Coverage
+.coverage
+htmlcov/
+
+# Claude Code local config
+.claude/
+
+# Generated files
+timeline-predictions.html
