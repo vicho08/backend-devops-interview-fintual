@@ -197,6 +197,54 @@ def test_view_count_increments_on_each_request(client, user):
 
 
 @pytest.mark.django_db
+def test_user_detail_counts_are_correct(client, user):
+    """post_count and comment_count must be exact, not inflated by cartesian product."""
+    other_user = User.objects.create(
+        username="bob", email="bob@example.com", display_name="Bob"
+    )
+    for i in range(3):
+        Post.objects.create(author=user, title=f"Post {i}", body="x")
+    for i in range(2):
+        post = Post.objects.create(author=other_user, title=f"Other {i}", body="x")
+        Comment.objects.create(post=post, author=user, body="comment")
+
+    resp = client.get(f"/api/users/{user.id}")
+    data = resp.json()
+
+    assert data["post_count"] == 3   # NOT 6 (3×2 cartesian product)
+    assert data["comment_count"] == 2  # NOT 6 (3×2 cartesian product)
+
+
+@pytest.mark.django_db
+def test_create_post_assigns_all_tags(client, user):
+    """All requested tag slugs are attached via a single batch lookup."""
+    Tag.objects.create(name="Python", slug="python")
+    Tag.objects.create(name="Django", slug="django")
+
+    resp = client.post(
+        "/api/posts",
+        {"author_id": user.id, "title": "T", "body": "B", "tag_slugs": ["python", "django"]},
+        content_type="application/json",
+    )
+
+    assert resp.status_code == 200
+    post = Post.objects.get(id=resp.json()["id"])
+    assert set(post.tags.values_list("slug", flat=True)) == {"python", "django"}
+
+
+@pytest.mark.django_db
+def test_create_post_invalid_tag_slug_returns_400(client, user):
+    """A nonexistent tag slug returns 400 instead of crashing with 500."""
+    resp = client.post(
+        "/api/posts",
+        {"author_id": user.id, "title": "T", "body": "B", "tag_slugs": ["nonexistent"]},
+        content_type="application/json",
+    )
+
+    assert resp.status_code == 400
+
+
+@pytest.mark.django_db
 def test_get_post_query_count_is_fixed(client, user):
     def make_post_with_comments(title, n_comments):
         post = Post.objects.create(author=user, title=title, body="body")
